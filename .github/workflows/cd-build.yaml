@@ -1,0 +1,35 @@
+name: CD – Build & Push to DOCR
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    environment: CD Build
+    permissions:
+      contents: read
+
+    env:
+      DOCR_REGISTRY: registry.digitalocean.com
+      DOCR_REPOSITORY: scadable/edge-compiler
+      IMAGE_TAG: ${{ github.sha }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Log in to DO Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.DOCR_REGISTRY }}
+          username: ${{ secrets.DOCR_USERNAME }}
+          password: ${{ secrets.DOCR_PASSWORD }}
+
+      - name: Build & push image
+        run: |
+          docker build -t ${{ env.DOCR_REGISTRY }}/${{ env.DOCR_REPOSITORY }}:${{ env.IMAGE_TAG }} .
+          docker tag ${{ env.DOCR_REGISTRY }}/${{ env.DOCR_REPOSITORY }}:${{ env.IMAGE_TAG }} ${{ env.DOCR_REGISTRY }}/${{ env.DOCR_REPOSITORY }}:latest
+          docker push ${{ env.DOCR_REGISTRY }}/${{ env.DOCR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          docker push ${{ env.DOCR_REGISTRY }}/${{ env.DOCR_REPOSITORY }}:latest
