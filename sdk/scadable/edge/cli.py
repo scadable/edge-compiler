@@ -4,6 +4,7 @@ import json
 import argparse
 
 CONFIG_FILE = "scadable.json"
+METADATA_FILE = ".scadable"
 
 # ─── Templates ────────────────────────────────────────────────────────────────
 
@@ -117,7 +118,7 @@ SCADABLE_ASCII = """
  ___) | | |___   / ___ \\  | |_| |  / ___ \\  | |_) | | |___  | |___
 |____/   \\____| /_/   \\_\\ |____/  /_/   \\_\\ |____/  |_____| |_____|
 
-Edge SDK v0.1.0
+Edge SDK v0.2.0
 """
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -125,102 +126,65 @@ Edge SDK v0.1.0
 def to_class_name(name: str) -> str:
     return "".join(p.capitalize() for p in name.replace("_", "-").split("-"))
 
-def get_gateways() -> list:
-    """Get list of gateway names by scanning gateways/ subfolders."""
-    if not os.path.exists("gateways"):
-        return []
-    gateways = []
-    for name in os.listdir("gateways"):
-        path = os.path.join("gateways", name)
-        if os.path.isdir(path):
-            gateways.append(name)
-    return sorted(gateways)
-
-def next_gateway_name() -> str:
-    """Auto-increment gateway name: gateway-001, gateway-002 etc."""
-    existing = get_gateways()
-    i = 1
-    while True:
-        name = f"gateway-{i:03d}"
-        if name not in existing:
-            return name
-        i += 1
+def is_project():
+    """Check if current directory is a Scadable project."""
+    return os.path.exists(CONFIG_FILE) or os.path.exists(METADATA_FILE)
 
 def require_project():
-    """Exit if not in a Scadable project (no scadable.json)."""
-    if not os.path.exists(CONFIG_FILE):
-        print(f"No {CONFIG_FILE} found. Run 'scadable init' first.")
+    """Exit if not in a Scadable project."""
+    if not is_project():
+        print(f"Not a Scadable project. Run 'scadable init' or clone from the dashboard.")
         sys.exit(1)
 
-def resolve_gateway(gateway_arg: str = None) -> str:
-    """
-    Resolve which gateway to use.
-    - If --gateway is specified, use it.
-    - If only one gateway exists, use it automatically.
-    - If multiple exist, prompt the user to pick.
-    """
-    gateways = get_gateways()
-    if not gateways:
-        print("No gateways found. Run 'scadable add gateway' first.")
-        sys.exit(1)
-    if gateway_arg:
-        if gateway_arg not in gateways:
-            print(f"Gateway '{gateway_arg}' not found. Available: {', '.join(gateways)}")
-            sys.exit(1)
-        return gateway_arg
-    if len(gateways) == 1:
-        return gateways[0]
-    # Multiple gateways — prompt
-    print("Multiple gateways found:")
-    for i, gw in enumerate(gateways, 1):
-        print(f"  {i}. {gw}")
-    choice = input("Select gateway (number): ").strip()
-    try:
-        return gateways[int(choice) - 1]
-    except (ValueError, IndexError):
-        print("Invalid choice.")
-        sys.exit(1)
+def load_project_config():
+    """Load scadable.json if it exists."""
+    if os.path.exists(CONFIG_FILE):
+        with open(CONFIG_FILE) as f:
+            return json.load(f)
+    return {}
+
+def load_metadata():
+    """Load .scadable metadata if it exists."""
+    if os.path.exists(METADATA_FILE):
+        with open(METADATA_FILE) as f:
+            return json.load(f)
+    return {}
 
 # ─── Commands ─────────────────────────────────────────────────────────────────
 
 def cmd_init(project_name: str = None):
-    if os.path.exists(CONFIG_FILE):
-        print(f"{CONFIG_FILE} already exists.")
-        sys.exit(1)
+    if is_project():
+        config = load_project_config()
+        name = config.get("project", os.path.basename(os.getcwd()))
+        print(f"✓ Already a Scadable project: {name}")
+        os.makedirs("devices", exist_ok=True)
+        print(f"\nRun: scadable add device modbus-tcp <device-name>")
+        return
+
     name = project_name or os.path.basename(os.getcwd())
     config = {"project": name, "version": "0.1.0"}
-    os.makedirs("gateways", exist_ok=True)
+    os.makedirs("devices", exist_ok=True)
     with open(CONFIG_FILE, "w") as f:
         json.dump(config, f, indent=2)
     print(SCADABLE_ASCII)
     print(f"✓ Initialized project '{name}'")
-    print(f"✓ Created gateways/")
+    print(f"✓ Created devices/")
     print(f"✓ Created {CONFIG_FILE}")
-    print(f"\nNext: scadable add gateway")
+    print(f"\nNext: scadable add device modbus-tcp <device-name>")
 
-def cmd_add_gateway(gateway_name: str = None):
+def cmd_add_device(protocol: str, device_name: str):
     require_project()
-    existing = get_gateways()
-    name = gateway_name or next_gateway_name()
-    if name in existing:
-        print(f"Gateway '{name}' already exists.")
-        sys.exit(1)
-    path = os.path.join("gateways", name)
-    os.makedirs(path, exist_ok=True)
-    print(f"✓ Created gateways/{name}/")
-    print(f"\nNext: scadable add device modbus-tcp <device-name> --gateway {name}")
-
-def cmd_add_device(protocol: str, device_name: str, gateway_arg: str = None):
-    require_project()
-    gateway = resolve_gateway(gateway_arg)
     template = TEMPLATES.get(protocol)
     if not template:
         print(f"Unknown protocol '{protocol}'. Available: {', '.join(TEMPLATES.keys())}")
         sys.exit(1)
-    device_path = os.path.join("gateways", gateway, device_name)
+
+    os.makedirs("devices", exist_ok=True)
+    device_path = os.path.join("devices", device_name)
     if os.path.exists(device_path):
-        print(f"Device '{device_name}' already exists in gateway '{gateway}'.")
+        print(f"Device '{device_name}' already exists.")
         sys.exit(1)
+
     os.makedirs(device_path)
     config_path = os.path.join(device_path, "config.py")
     content = template.format(
@@ -232,41 +196,65 @@ def cmd_add_device(protocol: str, device_name: str, gateway_arg: str = None):
     print(f"✓ Created {config_path}")
     print(f"\nNext: edit {config_path} and set your connection details.")
 
+def cmd_list_devices():
+    """List all devices in the project."""
+    require_project()
+    devices_dir = "devices"
+    if not os.path.exists(devices_dir):
+        print("No devices found.")
+        return
+
+    devices = []
+    for name in sorted(os.listdir(devices_dir)):
+        path = os.path.join(devices_dir, name)
+        if os.path.isdir(path) and os.path.exists(os.path.join(path, "config.py")):
+            devices.append(name)
+
+    if not devices:
+        print("No devices found. Run: scadable add device modbus-tcp <name>")
+        return
+
+    config = load_project_config()
+    print(f"Project: {config.get('project', 'unknown')}")
+    print(f"Devices ({len(devices)}):")
+    for d in devices:
+        print(f"  • {d}")
+
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
-    parser = argparse.ArgumentParser(prog="scadable")
+    parser = argparse.ArgumentParser(
+        prog="scadable",
+        description="Scadable Edge SDK — manage IoT device configurations"
+    )
     sub = parser.add_subparsers(dest="command")
 
     # scadable init [name]
     p_init = sub.add_parser("init", help="Initialize a new Scadable project")
     p_init.add_argument("name", nargs="?", help="Project name (default: current folder name)")
 
-    # scadable add ...
-    p_add = sub.add_parser("add", help="Add a gateway or device")
+    # scadable add device <protocol> <name>
+    p_add = sub.add_parser("add", help="Add a device")
     add_sub = p_add.add_subparsers(dest="resource")
 
-    # scadable add gateway [name]
-    p_gw = add_sub.add_parser("gateway", help="Add a new gateway")
-    p_gw.add_argument("name", nargs="?", help="Gateway name (default: gateway-001, gateway-002...)")
-
-    # scadable add device <protocol> <name> [--gateway <name>]
-    p_dev = add_sub.add_parser("device", help="Add a new device to a gateway")
-    p_dev.add_argument("protocol", choices=list(TEMPLATES.keys()))
+    p_dev = add_sub.add_parser("device", help="Add a new device")
+    p_dev.add_argument("protocol", choices=list(TEMPLATES.keys()), help="Device protocol")
     p_dev.add_argument("name", help="Device name e.g. temp-sensor")
-    p_dev.add_argument("--gateway", help="Gateway name (auto-detected if only one exists)")
+
+    # scadable list
+    sub.add_parser("list", help="List devices in the project")
 
     args = parser.parse_args()
 
     if args.command == "init":
         cmd_init(args.name)
     elif args.command == "add":
-        if args.resource == "gateway":
-            cmd_add_gateway(getattr(args, "name", None))
-        elif args.resource == "device":
-            cmd_add_device(args.protocol, args.name, getattr(args, "gateway", None))
+        if args.resource == "device":
+            cmd_add_device(args.protocol, args.name)
         else:
             p_add.print_help()
+    elif args.command == "list":
+        cmd_list_devices()
     else:
         parser.print_help()
 
