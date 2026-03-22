@@ -18,6 +18,7 @@ type Config struct {
 	MinioBucket    string
 	MinioUseSSL    bool
 	OrchestratorURL string
+	CallbackURL    string
 	CallbackPath   string
 }
 
@@ -35,7 +36,8 @@ func Load() (*Config, error) {
 		MinioBucket:     getenv("MINIO_BUCKET", "configs"),
 		MinioUseSSL:     os.Getenv("MINIO_USE_SSL") == "true",
 		OrchestratorURL: getenv("ORCHESTRATOR_URL", "http://service-orchestrator.scadable-core.svc.cluster.local:8085"),
-		CallbackPath:    getenv("CALLBACK_PATH", "/internal/releases/compiled"),
+		CallbackURL:     getenv("CALLBACK_URL", "http://service-app.scadable-app.svc.cluster.local"),
+		CallbackPath:    getenv("CALLBACK_PATH", "/api/webhooks/compiler"),
 	}
 
 	if cfg.ProjectID == "" {

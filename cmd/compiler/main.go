@@ -86,7 +86,7 @@ func main() {
 		DevicesCount:  result.DevicesCount,
 		DriversNeeded: result.DriversNeeded,
 	}
-	if err := notifier.Notify(cfg.OrchestratorURL, cfg.CallbackPath, notifyResult); err != nil {
+	if err := notifier.Notify(cfg.CallbackURL, cfg.CallbackPath, notifyResult); err != nil {
 		// Non-fatal — artifacts are uploaded even if notification fails
 		fmt.Fprintf(os.Stderr, "WARNING: orchestrator notification failed: %v\n", err)
 	}
@@ -109,7 +109,7 @@ func fail(cfg *config.Config, message string) {
 			Status:     "failed",
 			Error:      message,
 		}
-		_ = notifier.Notify(cfg.OrchestratorURL, cfg.CallbackPath, result)
+		_ = notifier.Notify(cfg.CallbackURL, cfg.CallbackPath, result)
 	}
 
 	os.Exit(1)
