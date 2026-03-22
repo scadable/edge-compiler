@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -148,7 +149,7 @@ func Package(
 		DriversNeeded: drivers,
 	}
 
-	manifestBytes, err := yaml.Marshal(manifest)
+	manifestBytes, err := json.Marshal(manifest)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal manifest: %w", err)
 	}
