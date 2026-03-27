@@ -16,8 +16,8 @@ from .device import Device
 from .controller import Controller
 from .storage import FileStorage, SQLiteStorage
 from .outbound import MQTTOutbound, S3Outbound
-from .connections import modbus_tcp, modbus_rtu, opcua, serial_uart
-from .fields import Register, Field
+from .connections import modbus_tcp, modbus_rtu, opcua, serial_uart, ble
+from .fields import Register, Field, Node, Characteristic
 from .schedule import every
 from .actions import route, actuate, alert, now
 from . import system

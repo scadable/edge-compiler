@@ -86,7 +86,7 @@ class {class_name}(Device):
     ]
 """,
         "opcua": """\
-from scadable import Device, opcua, every, SECONDS
+from scadable import Device, opcua, every, Node, SECONDS
 
 
 class {class_name}(Device):
@@ -95,8 +95,8 @@ class {class_name}(Device):
         host="${{OPCUA_HOST}}",
         port=4840,
         nodes=[
-            ("value_1", "ns=2;s=Path/To/Node1"),
-            ("value_2", "ns=2;s=Path/To/Node2"),
+            Node("value_1", namespace=2, path="Channel1/Device1/Value1"),
+            Node("value_2", namespace=2, path="Channel1/Device1/Value2"),
         ]
     )
     poll = every(5, SECONDS)
@@ -113,6 +113,22 @@ class {class_name}(Device):
         Field("value_1", start=0, length=4, type=FLOAT32, scale=0.01),
         Field("value_2", start=4, length=2, type=UINT16),
     ]
+""",
+        "ble": """\
+from scadable import Device, ble, every, Characteristic, SECONDS
+
+
+class {class_name}(Device):
+    id = "{name}"
+    connection = ble(
+        mac="${{DEVICE_MAC}}",
+        service="0x180D",  # Heart Rate Service
+        characteristics=[
+            Characteristic("heart_rate", uuid="0x2A37"),
+            Characteristic("body_sensor_location", uuid="0x2A38"),
+        ]
+    )
+    poll = every(1, SECONDS)
 """,
     },
     "controller": {

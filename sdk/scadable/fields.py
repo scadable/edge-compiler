@@ -62,3 +62,68 @@ class Field:
 
     def __repr__(self):
         return f"Field({self.name!r}, start={self.start}, length={self.length})"
+
+
+class Node:
+    """
+    OPC-UA node definition.
+
+    Defines a single node to read from an OPC-UA server. The gateway
+    subscribes to this node and exposes the value as a named attribute
+    in controllers.
+
+    Args:
+        name: Human-readable name (becomes the attribute name in controllers).
+        namespace: OPC-UA namespace index (default 2).
+        path: String node identifier (e.g. "Tank/Temperature"). For string-based nodes.
+        identifier: Numeric node identifier (e.g. 1001). For numeric nodes.
+
+    Examples:
+        Node("temperature", namespace=2, path="Channel1/Device1/Temperature")
+        Node("pump_speed", namespace=2, identifier=1001)
+    """
+
+    def __init__(self, name, namespace=2, path=None, identifier=None):
+        self.name = name
+        self.namespace = namespace
+        self.path = path
+        self.identifier = identifier
+
+    @property
+    def node_id(self):
+        """Generate the OPC-UA node ID string (e.g. 'ns=2;s=Tank/Temp')."""
+        if self.path:
+            return f"ns={self.namespace};s={self.path}"
+        elif self.identifier is not None:
+            return f"ns={self.namespace};i={self.identifier}"
+        return f"ns={self.namespace};s={self.name}"
+
+    def __repr__(self):
+        if self.path:
+            return f"Node({self.name!r}, namespace={self.namespace}, path={self.path!r})"
+        return f"Node({self.name!r}, namespace={self.namespace}, identifier={self.identifier})"
+
+
+class Characteristic:
+    """
+    BLE GATT characteristic definition.
+
+    Defines a single data point to read from a BLE device. The gateway
+    subscribes to this characteristic and exposes the value as a named
+    attribute in controllers.
+
+    Args:
+        name: Human-readable name (becomes the attribute name in controllers).
+        uuid: BLE characteristic UUID (e.g. "0x2A37" for Heart Rate Measurement).
+
+    Examples:
+        Characteristic("heart_rate", uuid="0x2A37")
+        Characteristic("spo2", uuid="0x2A5E")
+    """
+
+    def __init__(self, name, uuid):
+        self.name = name
+        self.uuid = uuid
+
+    def __repr__(self):
+        return f"Characteristic({self.name!r}, uuid={self.uuid!r})"

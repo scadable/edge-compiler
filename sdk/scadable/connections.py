@@ -34,12 +34,25 @@ def modbus_rtu(port, baud=9600, slave=1, parity="N", stopbits=1, bytesize=8, tim
 
 
 def opcua(host, port=4840, nodes=None, security=SECURITY_NONE, username="", password=""):
-    """OPC-UA connection to Ignition, Kepware, Siemens, etc."""
+    """OPC-UA connection to Ignition, Kepware, Siemens, etc.
+
+    Nodes can be Node objects or legacy tuples:
+        nodes=[Node("temp", namespace=2, path="Tank/Temp")]
+        nodes=[("temp", "ns=2;s=Tank/Temp")]  # backward compatible
+    """
+    resolved_nodes = []
+    for n in (nodes or []):
+        if isinstance(n, tuple):
+            resolved_nodes.append(n)
+        elif hasattr(n, "node_id"):
+            resolved_nodes.append((n.name, n.node_id))
+        else:
+            resolved_nodes.append(n)
     return {
         "type": "opcua",
         "host": host,
         "port": port,
-        "nodes": nodes or [],
+        "nodes": resolved_nodes,
         "security": security,
         "username": username,
         "password": password,
@@ -56,4 +69,30 @@ def serial_uart(port, baud=115200, parity="N", stopbits=1, bytesize=8, timeout=5
         "stopbits": stopbits,
         "bytesize": bytesize,
         "timeout": timeout,
+    }
+
+
+def ble(mac=None, service=None, characteristics=None, scan_timeout=10.0):
+    """BLE connection to a medical wearable, sensor, or embedded device.
+
+    Args:
+        mac: Bluetooth MAC address (e.g. "AA:BB:CC:DD:EE:FF"). If None, scans by service UUID.
+        service: BLE service UUID to filter by (e.g. "0x1822" for Pulse Oximeter Service).
+        characteristics: List of Characteristic objects to read.
+        scan_timeout: Seconds to scan before giving up (default 10).
+    """
+    resolved = []
+    for c in (characteristics or []):
+        if isinstance(c, tuple):
+            resolved.append(c)  # backward compat
+        elif hasattr(c, "uuid"):
+            resolved.append((c.name, c.uuid))
+        else:
+            resolved.append(c)
+    return {
+        "type": "ble",
+        "mac": mac or "",
+        "service": service or "",
+        "characteristics": resolved,
+        "scan_timeout": scan_timeout,
     }

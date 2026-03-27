@@ -105,6 +105,13 @@ def map_connection(conn):
         result["bytesize"] = conn.get("bytesize", 8)
         result["timeout"] = conn.get("timeout", 5.0)
 
+    elif conn_type == "ble":
+        result["mac"] = conn.get("mac", "")
+        result["service_uuid"] = conn.get("service", "")
+        chars = conn.get("characteristics", [])
+        result["characteristics"] = [{"name": c[0], "uuid": c[1]} for c in chars] if chars else []
+        result["scan_timeout"] = conn.get("scan_timeout", 10.0)
+
     return result, conn_type
 
 

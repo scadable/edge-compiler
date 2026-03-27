@@ -50,6 +50,18 @@ type ConnectionConfig struct {
 	SecurityPolicy string   `json:"security_policy,omitempty" yaml:"security_policy,omitempty"`
 	Username       string   `json:"username,omitempty" yaml:"username,omitempty"`
 	Password       string   `json:"password,omitempty" yaml:"password,omitempty"`
+
+	// BLE
+	MAC             string              `json:"mac,omitempty" yaml:"mac,omitempty"`
+	ServiceUUID     string              `json:"service_uuid,omitempty" yaml:"service_uuid,omitempty"`
+	Characteristics []BLECharacteristic `json:"characteristics,omitempty" yaml:"characteristics,omitempty"`
+	ScanTimeout     float64             `json:"scan_timeout,omitempty" yaml:"scan_timeout,omitempty"`
+}
+
+// BLECharacteristic represents a BLE GATT characteristic to read.
+type BLECharacteristic struct {
+	Name string `json:"name" yaml:"name"`
+	UUID string `json:"uuid" yaml:"uuid"`
 }
 
 // DecodeConfig describes how to transform raw device data.
@@ -141,6 +153,8 @@ func ConvertPython(repoDir string) (*ConvertResult, error) {
 			if d.Connection.Host == "" {
 				return nil, fmt.Errorf("device %s: opcua requires connection.host", d.DeviceID)
 			}
+		case "ble":
+			// BLE can scan by MAC or service UUID, both optional
 		}
 	}
 
@@ -189,6 +203,8 @@ func DriverName(protocol string) string {
 		return "driver-opcua"
 	case "serial":
 		return "driver-serial"
+	case "ble":
+		return "driver-ble"
 	case "mqtt":
 		return "driver-mqtt"
 	default:
