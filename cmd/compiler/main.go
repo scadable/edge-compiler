@@ -45,63 +45,73 @@ func main() {
 	}
 	fmt.Printf("  Cloned at commit: %s\n", commitHash[:8])
 
-	// Step 3: Convert Python to device configs
-	fmt.Println("[3/5] Converting Python device definitions...")
-	devices, err := converter.ConvertPythonToDevices(repoDir)
+	// Step 3: Convert Python definitions
+	fmt.Println("[3/5] Converting Python definitions...")
+	result, err := converter.ConvertPython(repoDir)
 	if err != nil {
 		fail(cfg, fmt.Sprintf("conversion failed: %v", err))
 	}
-	fmt.Printf("  Found %d device(s)\n", len(devices))
-	for _, d := range devices {
-		fmt.Printf("    - %s (%s)\n", d.DeviceID, d.Protocol)
+	fmt.Printf("  Devices:     %d\n", len(result.Devices))
+	fmt.Printf("  Controllers: %d\n", len(result.Controllers))
+	fmt.Printf("  Storage:     %d\n", len(result.Storage))
+	fmt.Printf("  Outbound:    %d\n", len(result.Outbound))
+
+	for _, d := range result.Devices {
+		fmt.Printf("    device: %s (%s)\n", d.DeviceID, d.Protocol)
+	}
+	for _, c := range result.Controllers {
+		fmt.Printf("    controller: %s (every %ds)\n", c.ID, c.Interval)
 	}
 
-	if len(devices) == 0 {
+	if len(result.Devices) == 0 {
 		fail(cfg, "no device definitions found in repository")
 	}
 
 	// Step 4: Package and upload to MinIO
 	fmt.Println("[4/5] Packaging and uploading to MinIO...")
-	result, err := packager.Package(
+	pkgResult, err := packager.Package(
 		ctx,
 		cfg.ProjectID, cfg.ReleaseTag, cfg.CommitHash,
-		devices,
+		result,
+		repoDir,
 		cfg.MinioEndpoint, cfg.MinioAccessKey, cfg.MinioSecretKey, cfg.MinioBucket,
 		cfg.MinioUseSSL,
 	)
 	if err != nil {
 		fail(cfg, fmt.Sprintf("packaging failed: %v", err))
 	}
-	fmt.Printf("  Manifest: %s\n", result.ManifestURL)
-	fmt.Printf("  Drivers: %v\n", result.DriversNeeded)
+	fmt.Printf("  Manifest: %s\n", pkgResult.ManifestURL)
+	fmt.Printf("  Drivers: %v\n", pkgResult.DriversNeeded)
 
 	// Step 5: Notify orchestrator
 	fmt.Println("[5/5] Notifying orchestrator...")
 	notifyResult := &notifier.CompileResult{
-		ProjectID:     cfg.ProjectID,
-		ReleaseTag:    cfg.ReleaseTag,
-		CommitHash:    cfg.CommitHash,
-		Status:        "success",
-		ManifestURL:   result.ManifestURL,
-		DevicesCount:  result.DevicesCount,
-		DriversNeeded: result.DriversNeeded,
+		ProjectID:        cfg.ProjectID,
+		ReleaseTag:       cfg.ReleaseTag,
+		CommitHash:       cfg.CommitHash,
+		Status:           "success",
+		ManifestURL:      pkgResult.ManifestURL,
+		DevicesCount:     pkgResult.DevicesCount,
+		StorageCount:     pkgResult.StorageCount,
+		OutboundCount:    pkgResult.OutboundCount,
+		ControllersCount: pkgResult.ControllersCount,
+		DriversNeeded:    pkgResult.DriversNeeded,
 	}
 	if err := notifier.Notify(cfg.CallbackURL, cfg.CallbackPath, notifyResult); err != nil {
-		// Non-fatal — artifacts are uploaded even if notification fails
 		fmt.Fprintf(os.Stderr, "WARNING: orchestrator notification failed: %v\n", err)
 	}
 
 	elapsed := time.Since(start)
-	fmt.Printf("\n✅ Compilation complete in %s\n", elapsed.Round(time.Millisecond))
-	fmt.Printf("   %d devices, %d drivers\n", result.DevicesCount, len(result.DriversNeeded))
+	fmt.Printf("\nCompilation complete in %s\n", elapsed.Round(time.Millisecond))
+	fmt.Printf("   %d devices, %d controllers, %d storage, %d outbound\n",
+		pkgResult.DevicesCount, pkgResult.ControllersCount, pkgResult.StorageCount, pkgResult.OutboundCount)
 }
 
 // fail notifies the orchestrator of failure and exits.
 func fail(cfg *config.Config, message string) {
-	fmt.Fprintf(os.Stderr, "❌ ERROR: %s\n", message)
+	fmt.Fprintf(os.Stderr, "ERROR: %s\n", message)
 
-	// Try to notify orchestrator of failure
-	if cfg != nil && cfg.OrchestratorURL != "" {
+	if cfg != nil && cfg.CallbackURL != "" {
 		result := &notifier.CompileResult{
 			ProjectID:  cfg.ProjectID,
 			ReleaseTag: cfg.ReleaseTag,

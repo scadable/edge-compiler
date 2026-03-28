@@ -10,14 +10,17 @@ import (
 
 // CompileResult is the payload sent to the orchestrator callback.
 type CompileResult struct {
-	ProjectID     string   `json:"project_id"`
-	ReleaseTag    string   `json:"release_tag"`
-	CommitHash    string   `json:"commit_hash"`
-	Status        string   `json:"status"` // "success" or "failed"
-	ManifestURL   string   `json:"manifest_url,omitempty"`
-	DevicesCount  int      `json:"devices_count"`
-	DriversNeeded []string `json:"drivers_needed,omitempty"`
-	Error         string   `json:"error,omitempty"`
+	ProjectID        string   `json:"project_id"`
+	ReleaseTag       string   `json:"release_tag"`
+	CommitHash       string   `json:"commit_hash"`
+	Status           string   `json:"status"` // "success" or "failed"
+	ManifestURL      string   `json:"manifest_url,omitempty"`
+	DevicesCount     int      `json:"devices_count"`
+	StorageCount     int      `json:"storage_count"`
+	OutboundCount    int      `json:"outbound_count"`
+	ControllersCount int      `json:"controllers_count"`
+	DriversNeeded    []string `json:"drivers_needed,omitempty"`
+	Error            string   `json:"error,omitempty"`
 }
 
 // Notify sends the compile result to the orchestrator.
