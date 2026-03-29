@@ -316,6 +316,13 @@ def cmd_validate(args):
             try:
                 with open(filepath) as f:
                     source = f.read()
+                # Check for syntax errors first
+                try:
+                    compile(source, filepath, 'exec')
+                except SyntaxError as e:
+                    print(f"  ERROR {filepath} - syntax error on line {e.lineno}: {e.msg}")
+                    errors += 1
+                    continue
                 # Check that the file contains a class inheriting from one of the expected base classes
                 pattern = r"class\s+\w+\((" + "|".join(base_classes) + r")\)"
                 if re.search(pattern, source):
