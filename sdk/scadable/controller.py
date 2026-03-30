@@ -6,6 +6,58 @@ Docs: https://docs.scadable.com/docs/edge/decode-encode
 from .device import Device
 
 
+def on_startup(func):
+    """Mark a controller method to run when the gateway starts.
+
+    The decorated method is called once after all devices are initialized,
+    before the normal execute() loop begins.
+
+    Example:
+        @on_startup
+        def boot(self):
+            broadcast("Gateway online")
+    """
+    func._lifecycle = "startup"
+    return func
+
+
+def on_shutdown(func):
+    """Mark a controller method to run before the gateway shuts down.
+
+    The decorated method is called when the gateway receives SIGTERM
+    or SIGINT, before drivers are stopped. Use this to send a
+    system.shutdown() with an expected return time.
+
+    Example:
+        @on_shutdown
+        def goodbye(self):
+            system.shutdown(duration=2, HOURS)
+    """
+    func._lifecycle = "shutdown"
+    return func
+
+
+def on_message(message_type):
+    """Mark a controller method to run when a command is received.
+
+    The decorated method is called when the gateway receives a command
+    of the specified type from the cloud (via MQTT or gRPC).
+
+    Args:
+        message_type: String identifier for the command type (e.g., "halt", "capture").
+
+    Example:
+        @on_message("halt")
+        def handle_halt(self, message):
+            system.shutdown(duration=message.get("duration", 2), HOURS)
+    """
+    def decorator(func):
+        func._lifecycle = "message"
+        func._message_type = message_type
+        return func
+    return decorator
+
+
 class Controller:
     """
     Base class for controllers.
