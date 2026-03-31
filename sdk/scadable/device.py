@@ -32,6 +32,8 @@ class Device:
     poll = None
     registers: list = []
     fields: list = []
+    characteristics: list = []
+    historian = None
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)

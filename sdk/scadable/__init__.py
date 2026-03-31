@@ -18,6 +18,7 @@ from .storage import FileStorage, SQLiteStorage
 from .outbound import MQTTOutbound, S3Outbound
 from .connections import modbus_tcp, modbus_rtu, opcua, serial_uart, ble
 from .fields import Register, Field, Node, Characteristic
+from .historian import Historian
 from .schedule import every
 from .actions import route, actuate, alert, now
 from . import system

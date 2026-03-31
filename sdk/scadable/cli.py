@@ -72,6 +72,7 @@ class {class_name}(Device):
         Register(40001, "value_1", scale=0.1),
         Register(40002, "value_2", scale=0.01),
     ]
+    # historian = Historian(fields=["value_1"], interval=every(5, MINUTES))
 """,
         "modbus-rtu": """\
 from scadable import Device, modbus_rtu, every, Register, SECONDS
@@ -325,11 +326,39 @@ def cmd_validate(args):
                     continue
                 # Check that the file contains a class inheriting from one of the expected base classes
                 pattern = r"class\s+\w+\((" + "|".join(base_classes) + r")\)"
-                if re.search(pattern, source):
-                    print(f"  ok   {filepath}")
-                else:
+                if not re.search(pattern, source):
                     print(f"  ERROR {filepath} - no subclass of {'/'.join(base_classes)} found")
                     errors += 1
+                    continue
+
+                # For devices, validate historian fields match register/characteristic/field names
+                if rtype == "device" and "historian" in source and "Historian" in source:
+                    try:
+                        import importlib.util
+                        spec = importlib.util.spec_from_file_location("_validate_mod", filepath)
+                        mod = importlib.util.module_from_spec(spec)
+                        spec.loader.exec_module(mod)
+                        for attr_name in dir(mod):
+                            cls = getattr(mod, attr_name)
+                            if isinstance(cls, type) and hasattr(cls, 'historian') and cls.historian is not None:
+                                # Collect valid field names from registers, fields, and characteristics
+                                valid_names = set()
+                                for r in getattr(cls, 'registers', []):
+                                    valid_names.add(r.name)
+                                for f in getattr(cls, 'fields', []):
+                                    valid_names.add(f.name)
+                                for c in getattr(cls, 'characteristics', []):
+                                    valid_names.add(c.name)
+                                # Check each historian field
+                                for hf in cls.historian.fields:
+                                    if hf not in valid_names:
+                                        avail = ", ".join(sorted(valid_names)) if valid_names else "none"
+                                        print(f"  ERROR {filepath} - historian field '{hf}' not found in device registers (available: {avail})")
+                                        errors += 1
+                    except Exception:
+                        pass  # Import errors are OK here - syntax was already validated
+
+                print(f"  ok   {filepath}")
             except Exception as e:
                 print(f"  ERROR {filepath} - {e}")
                 errors += 1
