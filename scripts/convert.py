@@ -190,6 +190,20 @@ def extract_devices(modules):
             if decode:
                 device["decode"] = decode
 
+            # Extract historian config if present
+            historian = getattr(obj, "historian", None)
+            if historian is not None:
+                hist_config = {
+                    "fields": historian.fields or [],
+                    "condition": getattr(historian, "condition", "all") or "all",
+                }
+                hist_interval = getattr(historian, "interval", None)
+                if hist_interval is not None:
+                    hist_config["interval"] = poll_to_seconds(hist_interval)
+                else:
+                    hist_config["interval"] = frequency  # default to device poll rate
+                device["historian"] = hist_config
+
             devices.append(device)
 
     return devices

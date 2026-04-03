@@ -6,7 +6,8 @@ import (
 )
 
 type Config struct {
-	ProjectID      string
+	ProjectID      string // Namespace UUID — used for Gitea org name + MinIO path
+	CodeProjectID  string // CodeProject UUID — used for callback to match release record
 	RepoName       string
 	ReleaseTag     string
 	CommitHash     string
@@ -25,6 +26,7 @@ type Config struct {
 func Load() (*Config, error) {
 	cfg := &Config{
 		ProjectID:       os.Getenv("PROJECT_ID"),
+		CodeProjectID:   os.Getenv("CODE_PROJECT_ID"),
 		RepoName:        os.Getenv("REPO_NAME"),
 		ReleaseTag:      os.Getenv("RELEASE_TAG"),
 		CommitHash:      os.Getenv("COMMIT_HASH"),

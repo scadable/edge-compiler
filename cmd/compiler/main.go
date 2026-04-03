@@ -85,8 +85,14 @@ func main() {
 
 	// Step 5: Notify orchestrator
 	fmt.Println("[5/5] Notifying orchestrator...")
+	// Use CodeProjectID for callback if available (matches release record in service-app)
+	callbackProjectID := cfg.CodeProjectID
+	if callbackProjectID == "" {
+		callbackProjectID = cfg.ProjectID // fallback for backward compatibility
+	}
+
 	notifyResult := &notifier.CompileResult{
-		ProjectID:        cfg.ProjectID,
+		ProjectID:        callbackProjectID,
 		ReleaseTag:       cfg.ReleaseTag,
 		CommitHash:       cfg.CommitHash,
 		Status:           "success",
@@ -112,8 +118,12 @@ func fail(cfg *config.Config, message string) {
 	fmt.Fprintf(os.Stderr, "ERROR: %s\n", message)
 
 	if cfg != nil && cfg.CallbackURL != "" {
+		cbID := cfg.CodeProjectID
+		if cbID == "" {
+			cbID = cfg.ProjectID
+		}
 		result := &notifier.CompileResult{
-			ProjectID:  cfg.ProjectID,
+			ProjectID:  cbID,
 			ReleaseTag: cfg.ReleaseTag,
 			CommitHash: cfg.CommitHash,
 			Status:     "failed",
